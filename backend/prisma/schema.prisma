@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("WAITER")
+  active    Boolean  @default(true)
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders          Order[]
+  deliveries      Delivery[]
+  billingPayments Billing[]
+}
+
+model Table {
+  id         String   @id @default(uuid())
+  number     Int      @unique
+  capacity   Int
+  status     String   @default("AVAILABLE")
+  section    String?
+  mergedWith String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orders       Order[]
+  reservations Reservation[]
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  menuItems MenuItem[]
+}
+
+model MenuItem {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  categoryId  String
+  available   Boolean  @default(true)
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category   Category      @relation(fields: [categoryId], references: [id])
+  orderItems OrderItem[]
+  inventory  InventoryItem[]
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  tableId     String
+  waiterId    String
+  status      String   @default("PENDING")
+  type        String   @default("DINE_IN")
+  notes       String?
+  totalAmount Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  table    Table       @relation(fields: [tableId], references: [id])
+  waiter   User        @relation(fields: [waiterId], references: [id])
+  items    OrderItem[]
+  billing  Billing?
+  delivery Delivery?
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  menuItemId String
+  quantity   Int
+  price      Float
+  notes      String?
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+}
+
+model Billing {
+  id            String    @id @default(uuid())
+  orderId       String    @unique
+  cashierId     String
+  subtotal      Float
+  tax           Float
+  discount      Float     @default(0)
+  total         Float
+  paymentMethod String?
+  paymentStatus String    @default("PENDING")
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order   Order @relation(fields: [orderId], references: [id])
+  cashier User  @relation(fields: [cashierId], references: [id])
+}
+
+model InventoryItem {
+  id          String   @id @default(uuid())
+  menuItemId  String?
+  name        String
+  quantity    Float
+  unit        String
+  minStock    Float    @default(0)
+  costPerUnit Float    @default(0)
+  supplier    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id])
+}
+
+model Reservation {
+  id            String   @id @default(uuid())
+  tableId       String
+  customerName  String
+  customerPhone String?
+  partySize     Int
+  date          DateTime
+  time          String
+  status        String   @default("CONFIRMED")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  table Table @relation(fields: [tableId], references: [id])
+}
+
+model Delivery {
+  id              String    @id @default(uuid())
+  orderId         String    @unique
+  driverId        String?
+  customerName    String
+  customerPhone   String
+  customerAddress String
+  status          String    @default("PENDING")
+  estimatedTime   String?
+  deliveredAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  order  Order @relation(fields: [orderId], references: [id])
+  driver User? @relation(fields: [driverId], references: [id])
+}
